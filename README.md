@@ -88,7 +88,7 @@ For local Docker installation, see the complete guide below.
 df -h
 ```
 
-Escoge la partición con más espacio libre.
+Escoge la partición con más espacio libre. Necesitas al menos 40 GB libres para el disco de Windows.
 
 ### 2️⃣ Crea la carpeta de datos para Docker
 
@@ -96,69 +96,94 @@ Escoge la partición con más espacio libre.
 sudo mkdir -p /tmp/docker-data
 ```
 
-### 3️⃣ Configura Docker
-
-Edita el archivo:
+### 3️⃣ Prepara el archivo de entorno
 
 ```bash
-sudo nano /etc/docker/daemon.json
+cp .env.example .env
+nano .env
 ```
 
-Agrega:
+Rellena `WINDOWS_USERNAME` y `WINDOWS_PASSWORD` con tus credenciales. No uses una contraseña simple en un entorno público.
 
-```json
-{
-  "data-root": "/tmp/docker-data"
-}
-```
+### 4️⃣ Usa el archivo de Docker local
 
-### 4️⃣ Reinicia tu Codespace
+Este repositorio ya incluye una configuración lista para local Docker:
 
-Para aplicar los cambios de configuración.
+- `docker-compose.yml`
+- `docker/nginx.conf`
+- `docker/web.conf`
+- `.env.example`
 
-### 5️⃣ Verifica Docker
+### 5️⃣ Inicia el contenedor
 
 ```bash
-docker info
+docker compose up -d
 ```
 
-Asegúrate de que `Docker Root Dir` sea `/tmp/docker-data`.
+### 6️⃣ Accede al escritorio
+
+Abre tu navegador en:
+
+```text
+http://127.0.0.1:8006/
+```
+
+Si usas Docker Desktop en Windows o macOS y no ves la página, asegúrate de que el puerto 8006 esté publicado y abierto.
+
+> Nota: la primera ejecución descarga el instalador de Windows y puede tardar bastante. Si no tienes internet en el equipo donde lo ejecutas, deberás descargar la imagen de Windows por otro medio y usarla con el contenedor.
 
 ---
 
-## 🧱 Archivo `windows10.yml`
+## 🧱 Archivos de configuración local
 
-```yaml
-# Antes de ejecutar docker-compose up, ejecuta:
-# bash check_github_follow.sh || exit 1
-# Si no sigues a https://github.com/jephersonRD, el entorno no se iniciará.
-services:
-  windows:
-    image: dockurr/windows
-    container_name: windows
-    environment:
-      VERSION: "10"
-      USERNAME: ${WINDOWS_USERNAME}
-      PASSWORD: ${WINDOWS_PASSWORD}
-      RAM_SIZE: "10G"
-      CPU_CORES: "4"
-    cap_add:
-      - NET_ADMIN
-    ports:
-      - "8006:8006"
-      - "3389:3389/tcp"
-    volumes:
-      - /tmp/docker-data:/mnt/disco1
-      - windows-data:/mnt/windows-data
-    devices:
-      - "/dev/kvm:/dev/kvm"
-      - "/dev/net/tun:/dev/net/tun"
-    stop_grace_period: 2m
-    restart: always
+### `docker-compose.yml`
 
-volumes:
-  windows-data:
+Este archivo inicia el contenedor de Windows con los ajustes adecuados para un equipo ligero como tu Intel N100 con 16 GB de RAM.
+
+- `RAM_SIZE=3G`
+- `CPU_CORES=2`
+- `DISK_SIZE=32G`
+- `DNS` forzado a `8.8.8.8` y `1.1.1.1`
+- `port 8006` expuesto para la interfaz web
+- `port 3389` expuesto para RDP
+
+### `.env.example`
+
+```ini
+WINDOWS_USERNAME=YourUsername
+WINDOWS_PASSWORD=YourPassword
+GITHUB_USER=YourGitHubUsername
 ```
+
+Copia este archivo a `.env` antes de ejecutar Docker.
+
+### `docker/nginx.conf`
+
+Configuración mínima de nginx que carga el sitio desde el contenedor y sirve noVNC correctamente.
+
+### `docker/web.conf`
+
+Ruta de nginx para la interfaz web de noVNC, el proxy `/status` y `/websockify`.
+
+---
+
+## ▶️ Inicia el contenedor local
+
+```bash
+docker compose -f docker-compose.yml up -d
+```
+
+### Parar el contenedor
+
+```bash
+docker compose -f docker-compose.yml down
+```
+
+---
+
+## ⚠️ Requisito importante
+
+Este local setup está listo para usarse en Docker, pero la primera instalación de Windows requiere descargar el ISO desde Internet. Si no tienes Wi-Fi en este equipo, descarga el repo y ejecútalo en una máquina con conexión, o ten una imagen ISO local lista para montar.
 
 ---
 
@@ -174,22 +199,6 @@ GITHUB_USER=YourGitHubUsername
 
 ```bash
 echo ".env" >> .gitignore
-```
-
----
-
-## ▶️ Inicia el contenedor
-
-### Iniciar por primera vez
-
-```bash
-docker-compose -f windows10.yml up
-```
-
-### 🔌 Apagar la PC
-
-```bash
-docker stop windows
 ```
 
 ---
